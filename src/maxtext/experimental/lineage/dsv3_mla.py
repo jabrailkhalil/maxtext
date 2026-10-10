@@ -1119,6 +1119,8 @@ def init_splash_kernel(
     qk_diag_skip: bool = True,
     qk_diag_grid: int = 8,
     sv_diag_skip: bool = True,
+    diag_band_skip: bool = True,
+    dq_reduction_steps: int | None = 1,
 ) -> Any:
   """Initializes the Splash kernel with the given block sizes."""
   del num_query_heads
@@ -1144,15 +1146,24 @@ def init_splash_kernel(
   block_q = min(sa_block_q, q_seq_len_per_shard)
   block_kv = min(sa_block_kv, q_seq_len_per_shard)
   block_kv_compute = min(sa_block_kv_compute, q_seq_len_per_shard)
-  effective_qk_diag_skip = qk_diag_skip and (block_q == block_kv == block_kv_compute)
+  block_q_dkv = min(sa_block_q_dkv, q_seq_len_per_shard)
+  block_kv_dkv = min(sa_block_kv_dkv, q_seq_len_per_shard)
+  block_kv_dkv_compute = min(sa_block_kv_dkv_compute, q_seq_len_per_shard)
+  effective_qk_diag_skip = (
+      qk_diag_skip and block_q == block_kv == block_kv_compute and block_q_dkv == block_kv_dkv == block_kv_dkv_compute
+  )
   effective_sv_diag_skip = sv_diag_skip and (block_q == block_kv == block_kv_compute)
+  effective_dq_reduction_steps = (
+      None if dq_reduction_steps == 1 and q_seq_len_per_shard > 2 * block_q_dkv else dq_reduction_steps
+  )
+  effective_diag_band_skip = diag_band_skip and effective_qk_diag_skip and effective_dq_reduction_steps == 1
   sa_config = tokamax_splash_attention_kernel.SplashConfig(
       block_q=block_q,
       block_kv=block_kv,
       block_kv_compute=block_kv_compute,
-      block_q_dkv=min(sa_block_q_dkv, q_seq_len_per_shard),
-      block_kv_dkv=min(sa_block_kv_dkv, q_seq_len_per_shard),
-      block_kv_dkv_compute=min(sa_block_kv_dkv_compute, q_seq_len_per_shard),
+      block_q_dkv=block_q_dkv,
+      block_kv_dkv=block_kv_dkv,
+      block_kv_dkv_compute=block_kv_dkv_compute,
       block_q_dq=None,
       block_kv_dq=None,
       use_fused_bwd_kernel=True,
@@ -1162,6 +1173,8 @@ def init_splash_kernel(
       qk_diag_skip=effective_qk_diag_skip,
       qk_diag_grid=qk_diag_grid,
       sv_diag_skip=effective_sv_diag_skip,
+      diag_band_skip=effective_diag_band_skip,
+      dq_reduction_steps=effective_dq_reduction_steps,
   )
   mask = tokamax_splash_mask.CausalMask(shape=(max_target_length, max_target_length))
   splash_kernel = tokamax_splash_attention_kernel.make_splash_mha(
