@@ -243,6 +243,16 @@ def _unsupported_native_options(cfg: Any) -> list[str]:
       not get("parameter_memory_host_offload", False),
       "parameter_memory_host_offload is unsupported",
   )
+  stream_chunked_train_data = get("dataset_type", None) == "c4_mlperf" and (
+      get("use_stream_chunking", None)
+      if get("use_stream_chunking", None) is not None
+      else not get("tokenize_train_data", True)
+  )
+  require(
+      not get("lineage_drop_segment_ids", False) or stream_chunked_train_data,
+      "lineage_drop_segment_ids requires stream-chunked c4_mlperf train data"
+      " (every row one segment of 1s)",
+  )
   return problems
 
 
@@ -569,11 +579,14 @@ def loss_and_aux(
   from maxtext.experimental.lineage import dsv3_model  # pylint: disable=g-import-not-at-top,import-outside-toplevel
 
   cfg = model.lineage_config()
+  # Stream-chunked MLPerf training rows are one segment of all 1s (enforced in
+  # `validate_supported`), so the segment mask is a no-op: dropping it is exact.
+  drop_segment_ids = is_train and config.lineage_drop_segment_ids
   batch = dsv3_model.DSv3Batch(
       inputs=data["inputs"],
       targets=data["targets"],
       positions=data["inputs_position"],
-      segment_ids=data["inputs_segmentation"],
+      segment_ids=None if drop_segment_ids else data["inputs_segmentation"],
       target_mask=data["targets_segmentation"],
   )
   with _mesh_scope(model.mesh):

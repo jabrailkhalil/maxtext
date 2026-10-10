@@ -1654,6 +1654,13 @@ class DeepSeekMoE(BaseModel):
           " first step uses the identity."
       ),
   )
+  lineage_drop_segment_ids: bool = Field(
+      False,
+      description=(
+          "Drop segment ids from Lineage training steps. Exact when every train row is one segment"
+          " (stream-chunked c4_mlperf): skips Splash's per-tile segment mask in fwd and bwd."
+      ),
+  )
 
 
 class Qwen3Next(BaseModel):
