@@ -448,6 +448,42 @@ class GdnCpTest(absltest.TestCase):
       np.testing.assert_allclose(dm_uncached, dm_cached, rtol=1e-5, atol=1e-5)
       np.testing.assert_allclose(ds_uncached, ds_cached, rtol=1e-5, atol=1e-5)
 
+      # Verify on-the-fly t_inv recomputation (t_inv=None) used at chunk_size=128 matches explicit t_inv.
+      m_loc_no_tinv, s_ext_no_tinv = cp_gdn.compose_local_from_t_inv(
+          qkv_conv=qkv_conv,
+          b=b,
+          a=a,
+          a_log=a_log,
+          dt_bias=dt_bias,
+          t_inv=None,
+          num_k_heads=num_k_heads,
+          num_v_heads=num_v_heads,
+          head_k_dim=head_k_dim,
+          head_v_dim=head_v_dim,
+          chunk_size=chunk_size,
+          use_qk_norm_in_gdn=True,
+      )
+      np.testing.assert_allclose(m_loc_no_tinv, m_loc, rtol=1e-5, atol=1e-5)
+      np.testing.assert_allclose(s_ext_no_tinv, s_ext, rtol=1e-5, atol=1e-5)
+
+      dm_no_tinv, ds_no_tinv = cp_gdn.compose_bwd_local_from_t_inv(
+          qkv_conv=qkv_conv,
+          b=b,
+          a=a,
+          a_log=a_log,
+          dt_bias=dt_bias,
+          do=do,
+          t_inv=None,
+          num_k_heads=num_k_heads,
+          num_v_heads=num_v_heads,
+          head_k_dim=head_k_dim,
+          head_v_dim=head_v_dim,
+          chunk_size=chunk_size,
+          use_qk_norm_in_gdn=True,
+      )
+      np.testing.assert_allclose(dm_no_tinv, dm_uncached, rtol=1e-5, atol=1e-5)
+      np.testing.assert_allclose(ds_no_tinv, ds_uncached, rtol=1e-5, atol=1e-5)
+
 
 if __name__ == "__main__":
   absltest.main()
