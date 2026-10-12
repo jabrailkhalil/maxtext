@@ -55,6 +55,7 @@ class ManagedMLDiagnosticsTest(unittest.TestCase):
           gcs_path="gs://test_dir",
           on_demand_xprof=False,
           region=None,
+          application_framework="MAXTEXT",
       )
 
   def test_enabled_populated_region_passes_region(self):
@@ -76,6 +77,7 @@ class ManagedMLDiagnosticsTest(unittest.TestCase):
           gcs_path="gs://test_dir",
           on_demand_xprof=False,
           region="us-east1",
+          application_framework="MAXTEXT",
       )
 
 
